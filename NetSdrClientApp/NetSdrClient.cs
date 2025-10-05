@@ -131,9 +131,9 @@ namespace NetSdrClientApp
             }
         }
 
-        private TaskCompletionSource<byte[]> responseTaskSource;
+        private TaskCompletionSource<byte[]>? _responseTaskSource;
 
-        private async Task<byte[]> SendTcpRequest(byte[] msg)
+        private async Task<byte[]?> SendTcpRequest(byte[] msg)
         {
             if (!_tcpClient.Connected)
             {
@@ -141,12 +141,12 @@ namespace NetSdrClientApp
                 return null;
             }
 
-            responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             var responseTask = responseTaskSource.Task;
 
             await _tcpClient.SendMessageAsync(msg);
 
-            var resp = await responseTask;
+            var responseTask = _responseTaskSource.Task;
 
             return resp;
         }
@@ -154,10 +154,10 @@ namespace NetSdrClientApp
         private void _tcpClient_MessageReceived(object? sender, byte[] e)
         {
             //TODO: add Unsolicited messages handling here
-            if (responseTaskSource != null)
+            if (_responseTaskSource != null)
             {
-                responseTaskSource.SetResult(e);
-                responseTaskSource = null;
+                _responseTaskSource.SetResult(e);
+                _responseTaskSource = null;
             }
             Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
         }
