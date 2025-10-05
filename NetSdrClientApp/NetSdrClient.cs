@@ -1,14 +1,11 @@
-﻿using NetSdrClientApp.Messages;
+using NetSdrClientApp.Messages;
 using NetSdrClientApp.Networking;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using static NetSdrClientApp.Messages.NetSdrMessageHelper;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetSdrClientApp
 {
@@ -54,7 +51,7 @@ namespace NetSdrClientApp
             }
         }
 
-        public void Disconect()
+        public void Disconnect() 
         {
             _tcpClient.Disconnect();
         }
@@ -127,12 +124,10 @@ namespace NetSdrClientApp
             {
                 foreach (var sample in samples)
                 {
-                    sw.Write((short)sample); //write 16 bit per sample as configured 
+                    sw.Write((short)sample);
                 }
             }
         }
-
-        private TaskCompletionSource<byte[]>? _responseTaskSource;
 
         private async Task<byte[]?> SendTcpRequest(byte[] msg)
         {
@@ -143,11 +138,11 @@ namespace NetSdrClientApp
             }
 
             _responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var responseTask = responseTaskSource.Task;
+            var responseTask = _responseTaskSource.Task; 
 
             await _tcpClient.SendMessageAsync(msg);
 
-            var responseTask = _responseTaskSource.Task;
+            var resp = await responseTask; 
 
             return resp;
         }
@@ -160,7 +155,7 @@ namespace NetSdrClientApp
                 _responseTaskSource.SetResult(e);
                 _responseTaskSource = null;
             }
-            Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+            Console.WriteLine($"Response received: {BitConverter.ToString(e).Replace("-", " ")}"); 
         }
     }
 }
