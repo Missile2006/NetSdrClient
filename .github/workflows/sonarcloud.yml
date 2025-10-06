@@ -56,15 +56,15 @@ jobs:
           dotnet tool install --global dotnet-sonarscanner
           echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           dotnet sonarscanner begin `
-          /k:"Missile2006_NetSdrClient" `
+          /k:"Missile2006_NetSdrClient" `          
           /o:"missile2006" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.host.url="https://sonarcloud.io" `
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
           /d:sonar.cpd.cs.minimumLines=5 `
           /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
           /d:sonar.coverage.exclusions=** `
-          /d:sonar.qualitygate.wait=false
+          /d:sonar.qualitygate.wait=true
         shell: pwsh
 
 
