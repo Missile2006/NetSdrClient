@@ -25,7 +25,8 @@ namespace NetSdrClientApp.Messages
             DataItem0,
             DataItem1,
             DataItem2,
-            DataItem3
+            DataItem3,
+            GetControlItem
         }
 
         public enum ControlItemCodes
@@ -35,7 +36,11 @@ namespace NetSdrClientApp.Messages
             RFFilter = 0x0044,
             ADModes = 0x008A,
             ReceiverState = 0x0018,
-            ReceiverFrequency = 0x0020
+            ReceiverFrequency = 0x0020,
+            ManualGain = 0xB9,
+            DeviceStatus = 0xBA,
+            Calibration = 0xBB,
+            Reset = 0xBC
         }
 
         public static byte[] GetControlItemMessage(MsgTypes type, ControlItemCodes itemCode, byte[] parameters)

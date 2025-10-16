@@ -23,7 +23,7 @@ while (true)
     }
     else if (key == ConsoleKey.D)
     {
-        netSdr.Disconnect();
+        netSdr.Disconect();
     }
     else if (key == ConsoleKey.F)
     {
