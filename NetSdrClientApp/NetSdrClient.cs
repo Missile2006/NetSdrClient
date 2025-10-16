@@ -2,10 +2,13 @@ using NetSdrClientApp.Messages;
 using NetSdrClientApp.Networking;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using static NetSdrClientApp.Messages.NetSdrMessageHelper;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace NetSdrClientApp
 {
@@ -13,7 +16,6 @@ namespace NetSdrClientApp
     {
         private readonly ITcpClient _tcpClient;
         private readonly IUdpClient _udpClient;
-        private TaskCompletionSource<byte[]>? _responseTaskSource;
 
         public bool IQStarted { get; set; }
 
@@ -51,7 +53,7 @@ namespace NetSdrClientApp
             }
         }
 
-        public void Disconnect() 
+        public void Disconect()
         {
             _tcpClient.Disconnect();
         }
@@ -72,7 +74,7 @@ namespace NetSdrClientApp
             var args = new[] { iqDataMode, start, fifo16bitCaptureMode, n };
 
             var msg = NetSdrMessageHelper.GetControlItemMessage(MsgTypes.SetControlItem, ControlItemCodes.ReceiverState, args);
-            
+
             await SendTcpRequest(msg);
 
             IQStarted = true;
@@ -112,67 +114,26 @@ namespace NetSdrClientApp
             await SendTcpRequest(msg);
         }
 
-        public async Task SetGainAsync(byte channel, byte gainValue)
+        private void _udpClient_MessageReceived(object? sender, byte[] e)
         {
-            var args = new[] { channel, gainValue };
-            // Використовуємо повний шлях до перерахування
-            var msg = NetSdrMessageHelper.GetControlItemMessage(
-                NetSdrMessageHelper.MsgTypes.SetControlItem,
-                NetSdrMessageHelper.ControlItemCodes.ManualGain,
-                args);
-            await SendTcpRequest(msg);
-        }
-
-        public async Task RequestDeviceStatusAsync()
-        {
-            // Використовуємо повний шлях до перерахування
-            var msg = NetSdrMessageHelper.GetControlItemMessage(
-                NetSdrMessageHelper.MsgTypes.GetControlItem,
-                NetSdrMessageHelper.ControlItemCodes.DeviceStatus,
-                Array.Empty<byte>());
-            await SendTcpRequest(msg);
-        }
-
-        public async Task CalibrateDeviceAsync()
-        {
-            var args = new byte[] { 0x01 };
-            // Використовуємо повний шлях до перерахування
-            var msg = NetSdrMessageHelper.GetControlItemMessage(
-                NetSdrMessageHelper.MsgTypes.SetControlItem,
-                NetSdrMessageHelper.ControlItemCodes.Calibration,
-                args);
-            await SendTcpRequest(msg);
-        }
-
-        public async Task ResetDeviceAsync()
-        {
-            // Використовуємо повний шлях до перерахування
-            var msg = NetSdrMessageHelper.GetControlItemMessage(
-                NetSdrMessageHelper.MsgTypes.SetControlItem,
-                NetSdrMessageHelper.ControlItemCodes.Reset,
-                Array.Empty<byte>());
-            await SendTcpRequest(msg);
-        }
-
-
-        private static void _udpClient_MessageReceived(object? sender, byte[] e)
-        {
-            NetSdrMessageHelper.TranslateMessage(e, out MsgTypes _, out ControlItemCodes _, out ushort _, out byte[] body);
+            NetSdrMessageHelper.TranslateMessage(e, out _, out _, out _, out byte[] body);
             var samples = NetSdrMessageHelper.GetSamples(16, body);
-    
-            Console.WriteLine($"Samples received: {BitConverter.ToString(body).Replace("-", " ")}");
-    
+
+            Console.WriteLine($"Samples recieved: " + body.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
+
             using (FileStream fs = new FileStream("samples.bin", FileMode.Append, FileAccess.Write, FileShare.Read))
             using (BinaryWriter sw = new BinaryWriter(fs))
             {
                 foreach (var sample in samples)
                 {
-                    sw.Write((short)sample);
+                    sw.Write((short)sample); //write 16 bit per sample as configured 
                 }
             }
         }
 
-        private async Task<byte[]?> SendTcpRequest(byte[] msg)
+        private TaskCompletionSource<byte[]> responseTaskSource;
+
+        private async Task<byte[]> SendTcpRequest(byte[] msg)
         {
             if (!_tcpClient.Connected)
             {
@@ -180,12 +141,12 @@ namespace NetSdrClientApp
                 return null;
             }
 
-            _responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var responseTask = _responseTaskSource.Task; 
+            responseTaskSource = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var responseTask = responseTaskSource.Task;
 
             await _tcpClient.SendMessageAsync(msg);
 
-            var resp = await responseTask; 
+            var resp = await responseTask;
 
             return resp;
         }
@@ -193,17 +154,12 @@ namespace NetSdrClientApp
         private void _tcpClient_MessageReceived(object? sender, byte[] e)
         {
             //TODO: add Unsolicited messages handling here
-            if (_responseTaskSource != null)
+            if (responseTaskSource != null)
             {
-                _responseTaskSource.SetResult(e);
-                _responseTaskSource = null;
+                responseTaskSource.SetResult(e);
+                responseTaskSource = null;
             }
-            Console.WriteLine($"Response received: {BitConverter.ToString(e).Replace("-", " ")}"); 
-        }
-
-        public async Task SetBandwidthAsync(byte channel, int bandwidth)
-        {
-            throw new NotImplementedException();
+            Console.WriteLine("Response recieved: " + e.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
         }
     }
 }
