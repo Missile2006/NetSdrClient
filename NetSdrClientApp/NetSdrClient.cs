@@ -200,5 +200,10 @@ namespace NetSdrClientApp
             }
             Console.WriteLine($"Response received: {BitConverter.ToString(e).Replace("-", " ")}"); 
         }
+
+        public async Task SetBandwidthAsync(byte channel, int bandwidth)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
