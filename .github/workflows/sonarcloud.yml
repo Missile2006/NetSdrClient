@@ -60,24 +60,30 @@ jobs:
           /k:"Missile2006_NetSdrClient" `
           /o:"missile2006" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.host.url="https://sonarcloud.io" `
+          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
           /d:sonar.cpd.cs.minimumLines=5 `
           /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
-          /d:sonar.qualitygate.wait=false
+          /d:sonar.qualitygate.wait=true
         shell: pwsh
+
+
+      
       # 2) BUILD & TEST
       - name: Restore
         run: dotnet restore NetSdrClient.sln
+      
       - name: Build
         run: dotnet build NetSdrClient.sln -c Release --no-restore
-      #- name: Tests with coverage (OpenCover)
-      #  run: |
-      #    dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
-      #      /p:CollectCoverage=true `
-      #      /p:CoverletOutput=TestResults/coverage.xml `
-      #      /p:CoverletOutputFormat=opencover
-      #  shell: pwsh
+      
+      - name: Tests with coverage (OpenCover)
+        run: |
+          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+            /p:CollectCoverage=true `
+            /p:CoverletOutput=TestResults/coverage.xml `
+            /p:CoverletOutputFormat=opencover
+        shell: pwsh
+      
       # 3) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
