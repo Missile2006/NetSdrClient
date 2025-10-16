@@ -112,6 +112,49 @@ namespace NetSdrClientApp
             await SendTcpRequest(msg);
         }
 
+        public async Task SetGainAsync(byte channel, byte gainValue)
+        {
+            var args = new[] { channel, gainValue };
+            // Використовуємо повний шлях до перерахування
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                NetSdrMessageHelper.MsgTypes.SetControlItem,
+                NetSdrMessageHelper.ControlItemCodes.ManualGain,
+                args);
+            await SendTcpRequest(msg);
+        }
+
+        public async Task RequestDeviceStatusAsync()
+        {
+            // Використовуємо повний шлях до перерахування
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                NetSdrMessageHelper.MsgTypes.GetControlItem,
+                NetSdrMessageHelper.ControlItemCodes.DeviceStatus,
+                Array.Empty<byte>());
+            await SendTcpRequest(msg);
+        }
+
+        public async Task CalibrateDeviceAsync()
+        {
+            var args = new byte[] { 0x01 };
+            // Використовуємо повний шлях до перерахування
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                NetSdrMessageHelper.MsgTypes.SetControlItem,
+                NetSdrMessageHelper.ControlItemCodes.Calibration,
+                args);
+            await SendTcpRequest(msg);
+        }
+
+        public async Task ResetDeviceAsync()
+        {
+            // Використовуємо повний шлях до перерахування
+            var msg = NetSdrMessageHelper.GetControlItemMessage(
+                NetSdrMessageHelper.MsgTypes.SetControlItem,
+                NetSdrMessageHelper.ControlItemCodes.Reset,
+                Array.Empty<byte>());
+            await SendTcpRequest(msg);
+        }
+
+
         private static void _udpClient_MessageReceived(object? sender, byte[] e)
         {
             NetSdrMessageHelper.TranslateMessage(e, out MsgTypes _, out ControlItemCodes _, out ushort _, out byte[] body);
