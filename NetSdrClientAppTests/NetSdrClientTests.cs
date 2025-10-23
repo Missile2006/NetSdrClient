@@ -115,5 +115,39 @@ public class NetSdrClientTests
         Assert.That(_client.IQStarted, Is.False);
     }
 
+    [Test]
+    public async Task ChangeFrequencyAsync_SendsMessage()
+    {
+        // Arrange
+        await _client.ConnectAsync();
+
+        // Act
+        await _client.ChangeFrequencyAsync(144000000, 1); // 144 MHz, channel 1
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.AtLeast(4));
+    }
+
+    [Test]
+    public void TcpClient_MessageReceived_SetsResponseTask()
+    {
+        // Arrange
+        var bytes = new byte[] { 0x01, 0x02, 0x03 };
+        var tcpClientField = typeof(NetSdrClient)
+            .GetField("responseTaskSource", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        var tcs = new TaskCompletionSource<byte[]>();
+        tcpClientField.SetValue(_client, tcs);
+
+        // Act
+        var method = typeof(NetSdrClient)
+            .GetMethod("_tcpClient_MessageReceived", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        method.Invoke(_client, new object?[] { null, bytes });
+
+        // Assert
+        Assert.IsTrue(tcs.Task.IsCompleted);
+        Assert.That(tcs.Task.Result, Is.EqualTo(bytes));
+    }
     //TODO: cover the rest of the NetSdrClient code here
 }
