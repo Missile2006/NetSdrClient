@@ -162,5 +162,6 @@ namespace NetSdrClientApp.Messages
                 msgLength = _maxDataItemMessageLength;
             }
         }
+
     }
 }
