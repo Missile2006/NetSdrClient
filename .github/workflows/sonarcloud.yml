@@ -49,22 +49,21 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-          
-      - name: Install SonarScanner
-        run: |
-          dotnet tool install --global dotnet-sonarscanner
-          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+
       # 1) BEGIN: SonarScanner for .NET
       # 1) BEGIN: SonarScanner for .NET
       - name: SonarScanner Begin
         run: |
+          dotnet tool install --global dotnet-sonarscanner
+          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           dotnet sonarscanner begin `
           /k:"Missile2006_NetSdrClient" `
           /o:"missile2006" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
           /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
-          /d:sonar.coverage.exclusions="**Test*.cs" `
-          /d:sonar.exclusions="**/bin/**,**/obj/**,**/sonarcloud.yml" `
+          /d:sonar.cpd.cs.minimumTokens=40 `
+          /d:sonar.cpd.cs.minimumLines=5 `
+          /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
           /d:sonar.qualitygate.wait=true
         shell: pwsh
 
