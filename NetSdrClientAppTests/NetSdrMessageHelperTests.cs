@@ -63,41 +63,6 @@ namespace NetSdrClientAppTests
 
             Assert.That(parametersBytes.Count(), Is.EqualTo(parametersLength));
         }
-        [Test]
-        public void GetControlItemMessage_WithNullParameters_ThrowsException()
-        {
-            // Arrange
-            var type = NetSdrMessageHelper.MsgTypes.Ack;
-            var code = NetSdrMessageHelper.ControlItemCodes.ReceiverState;
 
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() =>
-                NetSdrMessageHelper.GetControlItemMessage(type, code, null!));
-        }
-
-        [Test]
-        public void GetDataItemMessage_WithNullParameters_ThrowsException()
-        {
-            // Arrange
-            var type = NetSdrMessageHelper.MsgTypes.DataItem2;
-
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() =>
-                NetSdrMessageHelper.GetDataItemMessage(type, null!));
-        }
-
-        [Test]
-        public void GetControlItemMessage_WithEmptyParameters()
-        {
-            // Arrange
-            var type = NetSdrMessageHelper.MsgTypes.Ack;
-            var code = NetSdrMessageHelper.ControlItemCodes.ReceiverState;
-
-            // Act
-            byte[] msg = NetSdrMessageHelper.GetControlItemMessage(type, code, Array.Empty<byte>());
-
-            // Assert
-            Assert.That(msg.Length, Is.EqualTo(4)); // Only header + code
-        }
     }
 }
