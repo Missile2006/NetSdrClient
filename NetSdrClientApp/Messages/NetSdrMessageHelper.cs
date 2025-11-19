@@ -132,27 +132,17 @@ namespace NetSdrClientApp.Messages
         {
             int offset = 0;
             int length = body.Length;
-
-            // Use a small stack buffer for packing to 4 bytes
-            Span<byte> buffer = stackalloc byte[4];
+            byte[] buffer = new byte[4]; 
 
             while (offset + bytesPerSample <= length)
             {
-                // copy sample bytes to start of buffer
-                body.AsSpan(offset, bytesPerSample).CopyTo(buffer);
-
-                // zero the remaining bytes up to 4
-                for (int i = bytesPerSample; i < 4; i++)
-                {
-                    buffer[i] = 0;
-                }
-
-                // convert to Int32 from buffer (little-endian)
-                yield return BitConverter.ToInt32(buffer);
-
+                Array.Clear(buffer, 0, 4); 
+                Array.Copy(body, offset, buffer, 0, bytesPerSample);
+                yield return BitConverter.ToInt32(buffer, 0);
                 offset += bytesPerSample;
             }
         }
+
 
         private static byte[] GetHeader(MsgTypes type, int msgLength)
         {
