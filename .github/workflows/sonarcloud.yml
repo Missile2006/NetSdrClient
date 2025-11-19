@@ -60,7 +60,7 @@ jobs:
           /k:"Missile2006_NetSdrClient" `
           /o:"missile2006" `
           /d:sonar.token="${{ secrets.SONAR_TOKEN }}" `
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.xml" `
+          /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" `
           /d:sonar.cpd.cs.minimumTokens=40 `
           /d:sonar.cpd.cs.minimumLines=5 `
           /d:sonar.exclusions=**/bin/**,**/obj/**,**/sonarcloud.yml `
@@ -78,11 +78,18 @@ jobs:
       
       - name: Tests with coverage (OpenCover)
         run: |
-          dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
+            dotnet test NetSdrClient.sln `
+            --configuration Release `
+            --no-build `
             /p:CollectCoverage=true `
-            /p:CoverletOutput=TestResults/coverage.xml `
-            /p:CoverletOutputFormat=opencover
+            /p:CoverletOutputFormat=opencover `
+            /p:CoverletOutput=TestResults/coverage.opencover.xml
         shell: pwsh
+      - name: Show coverage files
+        run: Get-ChildItem -Recurse TestResults
+        shell: pwsh
+      - name: Show all coverage.opencover.xml
+        run: Get-ChildItem -Recurse -Filter coverage.opencover.xml
       
       # 3) END: SonarScanner
       - name: SonarScanner End
