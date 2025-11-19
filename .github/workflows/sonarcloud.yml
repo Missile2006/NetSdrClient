@@ -90,7 +90,7 @@ jobs:
         shell: pwsh
       - name: Show all coverage.opencover.xml
         run: Get-ChildItem -Recurse -Filter coverage.opencover.xml
-      
+        shell: pwsh
       # 3) END: SonarScanner
       - name: SonarScanner End
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
