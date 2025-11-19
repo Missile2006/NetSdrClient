@@ -48,15 +48,15 @@ public class NetSdrClientTests
     }
 
     [Test]
-    public async Task DisconnectWithNoConnectionTest()
+    public void DisconnectWithNoConnectionTest()
     {
-        //act
+        // act
         _client.Disconect();
 
-        //assert
-        //No exception thrown
+        // assert
         _tcpMock.Verify(tcp => tcp.Disconnect(), Times.Once);
     }
+
 
     [Test]
     public async Task DisconnectTest()
@@ -115,5 +115,42 @@ public class NetSdrClientTests
         Assert.That(_client.IQStarted, Is.False);
     }
 
-    //TODO: cover the rest of the NetSdrClient code here
+    [Test]
+    public async Task ChangeFrequencyAsync_SendsMessage()
+    {
+        // Arrange
+        await _client.ConnectAsync();
+
+        // Act
+        await _client.ChangeFrequencyAsync(144000000, 1); // 144 MHz, channel 1
+
+        // Assert
+        _tcpMock.Verify(tcp => tcp.SendMessageAsync(It.IsAny<byte[]>()), Times.AtLeast(4));
+    }
+
+    [Test]
+    public async Task TcpClient_MessageReceived_SetsResponseTask()
+    {
+        // Arrange
+        var bytes = new byte[] { 0x01, 0x02, 0x03 };
+
+        var tcpClientField = typeof(NetSdrClient)
+            .GetField("responseTaskSource", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.That(tcpClientField, Is.Not.Null, "Could not find non-public field 'responseTaskSource' on NetSdrClient.");
+        var tcs = new TaskCompletionSource<byte[]>();
+
+        tcpClientField!.SetValue(_client, tcs);
+
+        var method = typeof(NetSdrClient)
+            .GetMethod("_tcpClient_MessageReceived", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.That(method, Is.Not.Null, "Could not find non-public method '_tcpClient_MessageReceived' on NetSdrClient.");
+
+        method!.Invoke(_client, new object?[] { null, bytes });
+
+        var result = await tcs.Task;
+
+        Assert.That(result, Is.EqualTo(bytes), "TaskCompletionSource should be completed with the received bytes.");
+    }
 }
