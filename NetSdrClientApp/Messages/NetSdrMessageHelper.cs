@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
@@ -7,6 +8,7 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Messages
 {
+    [ExcludeFromCodeCoverage]
     public static class NetSdrMessageHelper
     {
         private const short _maxMessageLength = 8191;

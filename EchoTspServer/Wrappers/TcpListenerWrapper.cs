@@ -1,10 +1,12 @@
-﻿using EchoServer.Abstractions;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using EchoServer.Abstractions;
 
 namespace EchoServer.Wrappers
 {
+    [ExcludeFromCodeCoverage]
     public class TcpListenerWrapper : ITcpListener
     {
         private readonly TcpListener _listener;
