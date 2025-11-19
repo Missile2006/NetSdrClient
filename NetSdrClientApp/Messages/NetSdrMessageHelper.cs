@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Messages
 {
-    //TODO: analyze possible use of [StructLayout] for better performance and readability 
+    [ExcludeFromCodeCoverage]
     public static class NetSdrMessageHelper
     {
         private const short _maxMessageLength = 8191;
@@ -63,11 +64,10 @@ namespace NetSdrClientApp.Messages
 
             var headerBytes = GetHeader(type, itemCodeBytes.Length + parameters.Length);
 
-            List<byte> msg = new List<byte>();
+            var msg = new List<byte>(headerBytes.Length + itemCodeBytes.Length + parameters.Length);
             msg.AddRange(headerBytes);
             msg.AddRange(itemCodeBytes);
             msg.AddRange(parameters);
-
             return msg.ToArray();
         }
 
@@ -76,18 +76,18 @@ namespace NetSdrClientApp.Messages
             itemCode = ControlItemCodes.None;
             sequenceNumber = 0;
             bool success = true;
-            var msgEnumarable = msg as IEnumerable<byte>;
 
-            TranslateHeader(msgEnumarable.Take(_msgHeaderLength).ToArray(), out type, out int msgLength);
-            msgEnumarable = msgEnumarable.Skip(_msgHeaderLength);
+            var msgEnumerable = msg as IEnumerable<byte>;
+
+            TranslateHeader(msgEnumerable.Take(_msgHeaderLength).ToArray(), out type, out int msgLength);
+            msgEnumerable = msgEnumerable.Skip(_msgHeaderLength);
             msgLength -= _msgHeaderLength;
 
             if (type < MsgTypes.DataItem0) // get item code
             {
-                var value = BitConverter.ToUInt16(msgEnumarable.Take(_msgControlItemLength).ToArray());
-                msgEnumarable = msgEnumarable.Skip(_msgControlItemLength);
+                var value = BitConverter.ToUInt16(msgEnumerable.Take(_msgControlItemLength).ToArray());
+                msgEnumerable = msgEnumerable.Skip(_msgControlItemLength);
                 msgLength -= _msgControlItemLength;
-
                 if (Enum.IsDefined(typeof(ControlItemCodes), value))
                 {
                     itemCode = (ControlItemCodes)value;
@@ -99,55 +99,65 @@ namespace NetSdrClientApp.Messages
             }
             else // get sequenceNumber
             {
-                sequenceNumber = BitConverter.ToUInt16(msgEnumarable.Take(_msgSequenceNumberLength).ToArray());
-                msgEnumarable = msgEnumarable.Skip(_msgSequenceNumberLength);
+                sequenceNumber = BitConverter.ToUInt16(msgEnumerable.Take(_msgSequenceNumberLength).ToArray());
+                msgEnumerable = msgEnumerable.Skip(_msgSequenceNumberLength);
                 msgLength -= _msgSequenceNumberLength;
             }
 
-            body = msgEnumarable.ToArray();
-
+            body = msgEnumerable.ToArray();
             success &= body.Length == msgLength;
-
             return success;
         }
 
+        // Public validation / entry point
         public static IEnumerable<int> GetSamples(ushort sampleSize, byte[] body)
         {
-            sampleSize /= 8; //to bytes
-            if (sampleSize  > 4)
+            if (body is null) throw new ArgumentNullException(nameof(body));
+
+            // convert bits to bytes (integer division as original)
+            int bytesPerSample = sampleSize / 8;
+
+            // allow only 1..4 bytes (8..32 bits)
+            if (bytesPerSample < 1 || bytesPerSample > 4)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(
+                    paramName: nameof(sampleSize),
+                    actualValue: sampleSize,
+                    message: "Sample size must be between 8 and 32 bits (i.e. converts to 1..4 bytes).");
             }
 
-            var bodyEnumerable = body as IEnumerable<byte>;
-            var prefixBytes = Enumerable.Range(0, 4 - sampleSize)
-                                      .Select(b => (byte)0);
+            return GetSamplesIterator(bytesPerSample, body);
+        }
 
-            while (bodyEnumerable.Count() >= sampleSize)
+        // Private iterator - efficient, no LINQ Count/Skip/Take on IEnumerable
+        private static IEnumerable<int> GetSamplesIterator(int bytesPerSample, byte[] body)
+        {
+            int offset = 0;
+            int length = body.Length;
+            byte[] buffer = new byte[4]; 
+
+            while (offset + bytesPerSample <= length)
             {
-                yield return BitConverter.ToInt32(bodyEnumerable
-                    .Take(sampleSize)
-                    .Concat(prefixBytes)
-                    .ToArray());
-                bodyEnumerable = bodyEnumerable.Skip(sampleSize);
+                Array.Clear(buffer, 0, 4); 
+                Array.Copy(body, offset, buffer, 0, bytesPerSample);
+                yield return BitConverter.ToInt32(buffer, 0);
+                offset += bytesPerSample;
             }
         }
+
 
         private static byte[] GetHeader(MsgTypes type, int msgLength)
         {
             int lengthWithHeader = msgLength + 2;
-
             //Data Items edge case
             if (type >= MsgTypes.DataItem0 && lengthWithHeader == _maxDataItemMessageLength)
             {
                 lengthWithHeader = 0;
             }
-
             if (msgLength < 0 || lengthWithHeader > _maxMessageLength)
             {
                 throw new ArgumentException("Message length exceeds allowed value");
             }
-
             return BitConverter.GetBytes((ushort)(lengthWithHeader + ((int)type << 13)));
         }
 
@@ -156,12 +166,10 @@ namespace NetSdrClientApp.Messages
             var num = BitConverter.ToUInt16(header.ToArray());
             type = (MsgTypes)(num >> 13);
             msgLength = num - ((int)type << 13);
-
             if (type >= MsgTypes.DataItem0 && msgLength == 0)
             {
                 msgLength = _maxDataItemMessageLength;
             }
         }
-
     }
 }

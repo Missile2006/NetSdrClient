@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetSdrClientAppTests", "Net
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoServer", "EchoTspServer\EchoServer.csproj", "{9179F2F7-EBEE-4A5D-9FD9-F6E3C18DD263}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfrastructureTests", "InfrastructureTests\InfrastructureTests.csproj", "{9C23A201-5494-4F05-B3B6-D93796D0A36A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoServerTests", "EchoServerTests\EchoServerTests.csproj", "{7730FCEA-FB36-4FAC-B882-F143561EE160}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{9179F2F7-EBEE-4A5D-9FD9-F6E3C18DD263}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9179F2F7-EBEE-4A5D-9FD9-F6E3C18DD263}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9179F2F7-EBEE-4A5D-9FD9-F6E3C18DD263}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C23A201-5494-4F05-B3B6-D93796D0A36A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C23A201-5494-4F05-B3B6-D93796D0A36A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C23A201-5494-4F05-B3B6-D93796D0A36A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C23A201-5494-4F05-B3B6-D93796D0A36A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7730FCEA-FB36-4FAC-B882-F143561EE160}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7730FCEA-FB36-4FAC-B882-F143561EE160}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7730FCEA-FB36-4FAC-B882-F143561EE160}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7730FCEA-FB36-4FAC-B882-F143561EE160}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
