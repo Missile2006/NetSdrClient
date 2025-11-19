@@ -78,9 +78,9 @@ jobs:
       
       - name: Tests with coverage (OpenCover)
         run: |
-            dotnet test EchoServerTests/EchoServerTests.csproj -c Release --no-build `
+            dotnet test EchoTspServerTests/EchoServerTests.csproj -c Release --no-build `
             /p:CollectCoverage=true `
-            /p:CoverletOutput=EchoServerTests/TestResults/coverage.xml `
+            /p:CoverletOutput=EchoTspServerTests/TestResults/coverage.xml `
             /p:CoverletOutputFormat=opencover
           
             dotnet test NetSdrClientAppTests/NetSdrClientAppTests.csproj -c Release --no-build `
