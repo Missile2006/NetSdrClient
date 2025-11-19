@@ -13,14 +13,11 @@ namespace NetSdrClientApp.Networking
     {
         private readonly string _host;
         private readonly int _port;
-
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
         private CancellationTokenSource? _cts;
-
         public bool Connected => _tcpClient?.Connected == true && _stream != null;
         public event EventHandler<byte[]>? MessageReceived;
-
         private bool _disposed;
 
         public TcpClientWrapper(string host, int port)
@@ -36,31 +33,47 @@ namespace NetSdrClientApp.Networking
                 Console.WriteLine($"Already connected to {_host}:{_port}");
                 return;
             }
-
             _tcpClient = new TcpClient();
             try
             {
                 _cts = new CancellationTokenSource();
-
                 _tcpClient.Connect(_host, _port);
                 _stream = _tcpClient.GetStream();
-
                 Console.WriteLine($"Connected to {_host}:{_port}");
-
                 _ = StartListeningAsync();
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Failed to connect: {e.Message}");
 
-                try { _cts?.Cancel(); } catch { }
-                try { _cts?.Dispose(); } catch { }
+                // Безпечне очищення ресурсів у разі помилки
+                try { _cts?.Cancel(); }
+                catch (Exception ex)
+                {
+                    // Можна ігнорувати, оскільки скасування токена не критичне
+                    Console.WriteLine($"Ignored exception during CTS.Cancel: {ex.Message}");
+                }
+
+                try { _cts?.Dispose(); }
+                catch (Exception ex)
+                {
+                    // Можна ігнорувати, оскільки Dispose безпечний
+                    Console.WriteLine($"Ignored exception during CTS.Dispose: {ex.Message}");
+                }
                 _cts = null;
 
-                try { _stream?.Dispose(); } catch { }
+                try { _stream?.Dispose(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during NetworkStream.Dispose: {ex.Message}");
+                }
                 _stream = null;
 
-                try { _tcpClient?.Close(); _tcpClient?.Dispose(); } catch { }
+                try { _tcpClient?.Close(); _tcpClient?.Dispose(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during TcpClient.Close/Dispose: {ex.Message}");
+                }
                 _tcpClient = null;
             }
         }
@@ -73,18 +86,23 @@ namespace NetSdrClientApp.Networking
                 return;
             }
 
-            try
+            try { _cts?.Cancel(); }
+            catch (Exception ex)
             {
-                _cts?.Cancel();
+                // Можна ігнорувати: токен скасовано або вже скасовано
+                Console.WriteLine($"Ignored exception during CTS.Cancel: {ex.Message}");
             }
-            catch { }
 
             try
             {
                 _stream?.Close();
                 _stream?.Dispose();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Можна ігнорувати: стрім вже закритий
+                Console.WriteLine($"Ignored exception during NetworkStream.Close/Dispose: {ex.Message}");
+            }
             _stream = null;
 
             try
@@ -92,14 +110,19 @@ namespace NetSdrClientApp.Networking
                 _tcpClient?.Close();
                 _tcpClient?.Dispose();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // Можна ігнорувати: TcpClient вже закритий
+                Console.WriteLine($"Ignored exception during TcpClient.Close/Dispose: {ex.Message}");
+            }
             _tcpClient = null;
 
-            try
+            try { _cts?.Dispose(); }
+            catch (Exception ex)
             {
-                _cts?.Dispose();
+                // Можна ігнорувати: Dispose CTS безпечний
+                Console.WriteLine($"Ignored exception during CTS.Dispose: {ex.Message}");
             }
-            catch { }
             _cts = null;
 
             Console.WriteLine("Disconnected.");
@@ -136,9 +159,7 @@ namespace NetSdrClientApp.Networking
                 Console.WriteLine("Cannot start listener: not connected or stream not readable.");
                 return;
             }
-
             var token = _cts?.Token ?? CancellationToken.None;
-
             try
             {
                 Console.WriteLine("Starting listening for incoming messages.");
@@ -146,26 +167,23 @@ namespace NetSdrClientApp.Networking
                 {
                     byte[] buffer = new byte[8194];
                     int bytesRead;
-
                     try
                     {
                         bytesRead = await _stream.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
-                        break;
+                        break; // При скасуванні токена вихід із циклу
                     }
                     catch (ObjectDisposedException)
                     {
-                        break;
+                        break; // Стрім закрито, вихід із циклу
                     }
-
                     if (bytesRead == 0)
                     {
                         Console.WriteLine("Remote closed connection (bytesRead == 0).");
                         break;
                     }
-
                     MessageReceived?.Invoke(this, buffer.AsSpan(0, bytesRead).ToArray());
                 }
             }
@@ -176,8 +194,12 @@ namespace NetSdrClientApp.Networking
             finally
             {
                 Console.WriteLine("Listener stopped.");
-
-                try { Disconnect(); } catch { }
+                try { Disconnect(); }
+                catch (Exception ex)
+                {
+                    // Можна ігнорувати: Disconnect обробляє винятки всередині
+                    Console.WriteLine($"Ignored exception during Disconnect: {ex.Message}");
+                }
             }
         }
 
@@ -185,19 +207,32 @@ namespace NetSdrClientApp.Networking
         protected virtual void Dispose(bool disposing)
         {
             if (_disposed) return;
-
             if (disposing)
             {
-                try { _cts?.Cancel(); } catch { }
-                try { _stream?.Dispose(); } catch { }
-                try { _tcpClient?.Dispose(); } catch { }
-                try { _cts?.Dispose(); } catch { }
-
+                try { _cts?.Cancel(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during CTS.Cancel: {ex.Message}");
+                }
+                try { _stream?.Dispose(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during NetworkStream.Dispose: {ex.Message}");
+                }
+                try { _tcpClient?.Dispose(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during TcpClient.Dispose: {ex.Message}");
+                }
+                try { _cts?.Dispose(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ignored exception during CTS.Dispose: {ex.Message}");
+                }
                 _stream = null;
                 _tcpClient = null;
                 _cts = null;
             }
-
             _disposed = true;
         }
 

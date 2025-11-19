@@ -72,27 +72,26 @@ namespace EchoServerTests
                 _sender.StartSending(50); // small interval
                 var received = await ReceiveWithTimeoutAsync(_listener!, ReceiveTimeoutMs);
 
-                // Assert using Constraint Model
-                Assert.That(received, Is.Not.Null, "No UDP message received within timeout.");
+                // Assert (group independent assertions)
+                Assert.Multiple(() =>
+                {
+                    Assert.That(received, Is.Not.Null, "No UDP message received within timeout.");
 
-                var data = received!.Value.Buffer;
+                    var data = received!.Value.Buffer;
 
-                // expected minimum size: 2(header) + 2(seq) + payload (>=1)
-                Assert.That(data.Length, Is.GreaterThanOrEqualTo(2 + 2 + 1),
-                    "Received data too short.");
+                    // expected minimum size: 2(header) + 2(seq) + payload (>=1)
+                    Assert.That(data, Has.Length.GreaterThanOrEqualTo(2 + 2 + 1), "Received data too short.");
 
-                Assert.That(data[0], Is.EqualTo(0x04), "First header byte mismatch.");
-                Assert.That(data[1], Is.EqualTo(0x84), "Second header byte mismatch.");
+                    Assert.That(data[0], Is.EqualTo(0x04), "First header byte mismatch.");
+                    Assert.That(data[1], Is.EqualTo(0x84), "Second header byte mismatch.");
 
-                ushort seq = BitConverter.ToUInt16(data, 2);
+                    ushort seq = BitConverter.ToUInt16(data, 2);
+                    // first message should have seq == 1
+                    Assert.That(seq, Is.EqualTo((ushort)1), "Sequence number of first message should be 1.");
 
-                // first message should have seq == 1
-                Assert.That(seq, Is.EqualTo((ushort)1),
-                    "Sequence number of first message should be 1.");
-
-                // Expected total >= 1028 bytes
-                Assert.That(data.Length, Is.GreaterThanOrEqualTo(1028),
-                    "Expected message length at least 1028 bytes.");
+                    // Expected total >= 1028 bytes
+                    Assert.That(data, Has.Length.GreaterThanOrEqualTo(1028), "Expected message length at least 1028 bytes.");
+                });
             }
             finally
             {
@@ -101,6 +100,7 @@ namespace EchoServerTests
                 _sender = null;
             }
         }
+
 
 
         [Test]
@@ -114,9 +114,18 @@ namespace EchoServerTests
                 // Act
                 _sender.StartSending(100);
 
-                // Assert second start throws InvalidOperationException
-                var ex = Assert.Throws<InvalidOperationException>(() => _sender!.StartSending(100));
-                Assert.That(ex!.Message.IndexOf("already running", StringComparison.OrdinalIgnoreCase) >= 0, Is.True);
+                // Assert
+                Assert.Multiple(() =>
+                {
+                    var ex = Assert.Throws<InvalidOperationException>(() => _sender!.StartSending(100));
+
+                    Assert.That(ex, Is.Not.Null, "Expected InvalidOperationException but got null.");
+                    Assert.That(
+                        ex!.Message.IndexOf("already running", StringComparison.OrdinalIgnoreCase),
+                        Is.GreaterThanOrEqualTo(0),
+                        "Exception message does not contain expected text 'already running'."
+                    );
+                });
             }
             finally
             {
@@ -125,6 +134,7 @@ namespace EchoServerTests
                 _sender = null;
             }
         }
+
 
         [Test]
         public async Task StopSending_StopsFurtherMessages()

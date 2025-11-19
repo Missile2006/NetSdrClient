@@ -5,7 +5,7 @@ using EchoServer.Abstractions;
 
 namespace EchoServer.Wrappers
 {
-    public class TcpClientWrapper : ITcpClient, IDisposable
+    public class TcpClientWrapper : ITcpClient
     {
         private readonly TcpClient _client;
         private bool _disposed = false;
@@ -17,13 +17,13 @@ namespace EchoServer.Wrappers
 
         public INetworkStream GetStream()
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(TcpClientWrapper));
+            ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientWrapper));
             return new NetworkStreamWrapper(_client.GetStream());
         }
 
         public void Close()
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(TcpClientWrapper));
+            ObjectDisposedException.ThrowIf(_disposed, nameof(TcpClientWrapper));
             _client.Close();
         }
 
@@ -38,19 +38,17 @@ namespace EchoServer.Wrappers
                     // Dispose managed resources
                     _client.Dispose();
                 }
-
                 // no unmanaged resources
-
                 _disposed = true;
             }
         }
+
         [ExcludeFromCodeCoverage]
         public void Dispose()
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-
         #endregion
     }
 }
