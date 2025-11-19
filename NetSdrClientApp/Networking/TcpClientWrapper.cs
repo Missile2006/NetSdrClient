@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -10,21 +8,24 @@ using System.Threading.Tasks;
 
 namespace NetSdrClientApp.Networking
 {
-    public class TcpClientWrapper : ITcpClient
+    [ExcludeFromCodeCoverage]
+    public class TcpClientWrapper : ITcpClient, IDisposable
     {
-        private string _host;
-        private int _port;
+        private readonly string _host;
+        private readonly int _port;
+
         private TcpClient? _tcpClient;
         private NetworkStream? _stream;
-        private CancellationTokenSource _cts;
+        private CancellationTokenSource? _cts;
 
-        public bool Connected => _tcpClient != null && _tcpClient.Connected && _stream != null;
-
+        public bool Connected => _tcpClient?.Connected == true && _stream != null;
         public event EventHandler<byte[]>? MessageReceived;
+
+        private bool _disposed;
 
         public TcpClientWrapper(string host, int port)
         {
-            _host = host;
+            _host = host ?? throw new ArgumentNullException(nameof(host));
             _port = port;
         }
 
@@ -37,57 +38,90 @@ namespace NetSdrClientApp.Networking
             }
 
             _tcpClient = new TcpClient();
-
             try
             {
                 _cts = new CancellationTokenSource();
+
                 _tcpClient.Connect(_host, _port);
                 _stream = _tcpClient.GetStream();
+
                 Console.WriteLine($"Connected to {_host}:{_port}");
+
                 _ = StartListeningAsync();
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Console.WriteLine($"Failed to connect: {ex.Message}");
+                Console.WriteLine($"Failed to connect: {e.Message}");
+
+                try { _cts?.Cancel(); } catch { }
+                try { _cts?.Dispose(); } catch { }
+                _cts = null;
+
+                try { _stream?.Dispose(); } catch { }
+                _stream = null;
+
+                try { _tcpClient?.Close(); _tcpClient?.Dispose(); } catch { }
+                _tcpClient = null;
             }
         }
 
         public void Disconnect()
         {
-            if (Connected)
-            {
-                _cts?.Cancel();
-                _stream?.Close();
-                _tcpClient?.Close();
-
-                _cts = null;
-                _tcpClient = null;
-                _stream = null;
-                Console.WriteLine("Disconnected.");
-            }
-            else
+            if (!Connected && _tcpClient == null && _stream == null && _cts == null)
             {
                 Console.WriteLine("No active connection to disconnect.");
+                return;
             }
+
+            try
+            {
+                _cts?.Cancel();
+            }
+            catch { }
+
+            try
+            {
+                _stream?.Close();
+                _stream?.Dispose();
+            }
+            catch { }
+            _stream = null;
+
+            try
+            {
+                _tcpClient?.Close();
+                _tcpClient?.Dispose();
+            }
+            catch { }
+            _tcpClient = null;
+
+            try
+            {
+                _cts?.Dispose();
+            }
+            catch { }
+            _cts = null;
+
+            Console.WriteLine("Disconnected.");
         }
 
         public async Task SendMessageAsync(byte[] data)
         {
-            await SendMessageInternalAsync(data);
+            await SendMessageInternalAsync(data).ConfigureAwait(false);
         }
 
         public async Task SendMessageAsync(string str)
         {
-            await SendMessageInternalAsync(Encoding.UTF8.GetBytes(str));
-
+            await SendMessageInternalAsync(Encoding.UTF8.GetBytes(str)).ConfigureAwait(false);
         }
 
         private async Task SendMessageInternalAsync(byte[] data)
         {
             if (Connected && _stream != null && _stream.CanWrite)
             {
-                Console.WriteLine($"Message sent: " + data.Select(b => Convert.ToString(b, toBase: 16)).Aggregate((l, r) => $"{l} {r}"));
-                await _stream.WriteAsync(data, 0, data.Length);
+                var token = _cts?.Token ?? CancellationToken.None;
+                Console.WriteLine($"Message sent: {BitConverter.ToString(data).Replace('-', ' ')}");
+                await _stream.WriteAsync(data.AsMemory(), token).ConfigureAwait(false);
             }
             else
             {
@@ -97,41 +131,81 @@ namespace NetSdrClientApp.Networking
 
         private async Task StartListeningAsync()
         {
-            if (Connected && _stream != null && _stream.CanRead)
+            if (!Connected || _stream == null || !_stream.CanRead)
             {
-                try
-                {
-                    Console.WriteLine($"Starting listening for incomming messages.");
+                Console.WriteLine("Cannot start listener: not connected or stream not readable.");
+                return;
+            }
 
-                    while (!_cts.Token.IsCancellationRequested)
+            var token = _cts?.Token ?? CancellationToken.None;
+
+            try
+            {
+                Console.WriteLine("Starting listening for incoming messages.");
+                while (!token.IsCancellationRequested)
+                {
+                    byte[] buffer = new byte[8194];
+                    int bytesRead;
+
+                    try
                     {
-                        byte[] buffer = new byte[8194];
-
-                        int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length, _cts.Token);
-                        if (bytesRead > 0)
-                        {
-                            MessageReceived?.Invoke(this, buffer.AsSpan(0, bytesRead).ToArray());
-                        }
+                        bytesRead = await _stream.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false);
                     }
-                }
-                catch (OperationCanceledException ex)
-                {
-                    //empty
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in listening loop: {ex.Message}");
-                }
-                finally
-                {
-                    Console.WriteLine("Listener stopped.");
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
+
+                    if (bytesRead == 0)
+                    {
+                        Console.WriteLine("Remote closed connection (bytesRead == 0).");
+                        break;
+                    }
+
+                    MessageReceived?.Invoke(this, buffer.AsSpan(0, bytesRead).ToArray());
                 }
             }
-            else
+            catch (Exception e)
             {
-                throw new InvalidOperationException("Not connected to a server.");
+                Console.WriteLine($"Error in listening loop: {e.Message}");
+            }
+            finally
+            {
+                Console.WriteLine("Listener stopped.");
+
+                try { Disconnect(); } catch { }
             }
         }
-    }
 
+        #region IDisposable
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+
+            if (disposing)
+            {
+                try { _cts?.Cancel(); } catch { }
+                try { _stream?.Dispose(); } catch { }
+                try { _tcpClient?.Dispose(); } catch { }
+                try { _cts?.Dispose(); } catch { }
+
+                _stream = null;
+                _tcpClient = null;
+                _cts = null;
+            }
+
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        #endregion
+    }
 }

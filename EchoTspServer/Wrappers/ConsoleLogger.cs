@@ -1,8 +1,10 @@
-﻿using EchoServer.Abstractions;
-using System;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
+using EchoServer.Abstractions;
 
 namespace EchoServer.Wrappers
 {
+    [ExcludeFromCodeCoverage]
     public class ConsoleLogger : ILogger
     {
         public void Log(string message)

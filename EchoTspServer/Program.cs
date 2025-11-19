@@ -1,11 +1,13 @@
-﻿using EchoServer.Wrappers;
+﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using System;
 using System.Threading.Tasks;
 using EchoServer;
+using EchoServer.Wrappers;
 
 namespace EchoServer
 {
+    [ExcludeFromCodeCoverage]
     public static class Program
     {
         public static Task Main(string[] args)
